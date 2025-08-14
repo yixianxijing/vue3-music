@@ -1,0 +1,662 @@
+<template>
+  <div class="common-layout">
+     <el-container class="outer-container">
+      <el-container class="inner-container">
+        <el-main class="main">
+          <div class="top-list-top">
+            <div class="m-into">
+              <div class="cover">
+                <img width="150px" height="150px" :src="list.coverImgUrl" alt="">
+              </div>
+              <div class="cnt">
+                <div class="cntc m-into">
+                    <div v-if="list" class="hd"><h2>{{ list.name }}</h2></div>
+                    <div v-if="list" class="user">
+                        <img :src="list.creator?.avatarUrl || '../assets/personage-3.png'" alt="创作者头像" width="35px" height = "35px">
+                        <div class="creator">
+                            {{ list.creator?.nickname || '未知创作者' }}
+                        创建时间: {{ list.updateTime ? formatTime(list.updateTime) : '未知时间' }}
+                        </div>
+                    </div>
+                    <div v-if="list" class="btns">
+                      <el-button class="play">
+                        <img src="../assets/播放.png" alt="" width="18px" height="18px" @click="musicStore.addToPlaylist(listDetail)">
+                        播放
+                      </el-button>
+                      <el-button type="danger" @click="scrollToComment">
+                        <img src="../assets/消息.png" alt="" width="18px" height="18px">
+                        ({{ list.commentCount }})
+                      </el-button>
+                    </div>
+                    <div v-if="list" class="tags">
+                        标签：<el-button size="small" v-for="item in list.tags" :key = item round @click="handleChange(item)">{{ item }}</el-button>
+                    </div>
+                    <div v-if="list" class="description">
+                        {{ list.description }}
+                    </div>
+                    <div v-else class="loading">加载中...</div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="top-list-list">
+            <div class="list-top">
+              <h3><span class="list-title">歌曲列表</span></h3>
+              <span class="list-count">{{list.trackCount}}首歌</span>
+              <div class="play-count">播放
+                <strong id="play-count">{{formatPlayCount(list.playCount)}}</strong>
+                次
+              </div>
+            </div>
+            <table class="list">
+              <thead>
+                <tr>
+                  <th class="number">序号</th>
+                  <th class="music-title">标题</th>
+                  <th class="duration">时长</th>
+                  <th class="singer">歌手</th>
+                  <th class="album">专辑</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-for="(item, index) in listDetail" :key="item.id" :class="index % 2 === 0 ? 'even' : 'odd'">
+                  <td>
+                    <div class="td-number">
+                      <span class="num">{{ index+1 }}</span>
+                    </div>
+                  </td>
+                  <td>
+                    <div class="td-music-title">
+                      <img src="" alt="">
+                      <div class="music-name">
+                        <img src="../assets/播放.png" alt="" width="18px" height="18px" @click="musicStore.handleMusic(item.id)">
+                        <a @click="musicStore.handleMusic(item.id)">
+                        {{ item.name }}
+                        <span class="tag" v-if="item.alia && item.alia[0]">-{{ item.alia[0] }}</span>
+                        </a>
+                      </div>
+                    </div>
+                  </td>
+                  <td>
+                    <div class="td-duration">
+                      <span class="dur">{{ formatDuration(item.dt) }}</span>
+                    </div>
+                  </td>
+                  <td>
+                    <div class="td-singer">
+                      <span v-for="(artist, index) in item.ar" :key="artist.id">
+                        <a @click="musicStore.handleSinger(artist.id)">{{ artist.name }}</a>
+                        <span v-if="index < item.ar.length - 1"> / </span>
+                      </span>
+                    </div>
+                  </td>
+                  <td class="album">
+                    <div class="td-album">
+                      <a>{{ item.al.name }}</a>
+                    </div>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <div class="comment" id="comment-section">
+            <div class="comment-top">
+              <h3><span class="list-title">评论</span></h3>
+            </div>
+            <div v-if="commentList.length > 0">
+              <div class="m-cmmt" v-for="item in commentList" :key="item.id">
+                <div class="itm">
+                  <div class="head">
+                    <a><img :src="item.user.avatarUrl" alt=""></a>
+                  </div>
+                  <div class="cmn">
+                    <a href="">{{ item.user.nickname }}:</a>
+                    {{ item.content }}
+                  </div>
+                  <div class="rq">
+                    <div class="time">{{ item.timeStr }}</div>
+                    <div class="dz">
+                      <!-- 添加点赞图片 -->
+                      <img src="../assets/点赞.png" alt="点赞" class="like-icon">
+                      {{ item.likedCount }}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div v-else class="empty-comment">无评论</div>
+            </div>
+        </el-main>
+
+        <el-aside width="240px" class="aside">
+           <div class="singer-all">
+        <div class="singer-header">
+          <h3>相关推荐</h3>
+        </div>
+
+        <!-- 入驻/热门歌手列表 -->
+        <div class="singer-list">
+          <ul>
+            <li v-for="item in relatedList" :key="item.id" class="singer-item">
+              <div class="singer-avatar">
+                <img :src="item.coverImgUrl" alt="{{ artist.name }}" @click="musicStore.handlePlaylist(item.id)">
+              </div>
+              <div class="singer-info">
+                <h4 class="singer-name"><a @click="musicStore.handlePlaylist(item.id)">{{ item.name }}</a></h4>
+                <p class="singer-desc" @click="musicStore.handleHome(item.creator.userId)">by：{{ item.creator.nickname }}</p>
+              </div>
+            </li>
+          </ul>
+        </div>
+        </div>
+        </el-aside>      
+        </el-container>
+     </el-container>
+     <el-backtop  
+        :right="30" 
+        :bottom="100"
+        class="back-to-top"
+        >
+          <div class="backtop-content"> 
+          <img src="../assets/箭头 上.png" alt="回到顶部" width="24"> 
+          </div> 
+        </el-backtop>
+  </div>
+</template>
+
+<script setup>
+import {  getTopListDetails, getListComment, getListDetails, getRelatedList } from '@/api/music.js'
+import { ref, watch } from 'vue'
+import { useRoute,useRouter } from 'vue-router'
+import { useMusicStore } from '@/store/music.js'
+const musicStore = useMusicStore()
+const route = useRoute()
+const router = useRouter()
+
+// 格式化播放次数
+const formatPlayCount = (count) => {
+  return count > 10000 ? `${Math.floor(count/10000)}万` : count
+}
+
+// 格式化时长（毫秒 -> 分:秒）
+const formatDuration = (ms) => {
+  const minutes = Math.floor(ms / 60000)
+  const seconds = ((ms % 60000) / 1000).toFixed(0)
+
+  return `0${minutes}:${seconds.padStart(2, '0')}`
+}
+
+// 获取封面信息
+const list = ref([])
+const getList = async (id) =>{
+  const res = await getTopListDetails(id)
+  list.value = res.data.playlist
+  console.log(list.value)
+}
+
+// 获取歌单信息
+const listDetail = ref([])
+const getTopMusicList = async (id) => {
+  const res = await getListDetails(id)
+  // listDetail.value = [].concat(...res.data.songs)
+  listDetail.value = res.data.songs
+//   console.log(listDetail.value)
+}
+
+// 格式化时间戳为 MM 月 DD 日 格式
+const formatTime = (timestamp) => {
+  if (!timestamp) return ''
+  const date = new Date(timestamp)
+  const year = String(date.getFullYear() + 1)
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const day = String(date.getDate()).padStart(2, '0')
+
+  return `${year}年${month}月${day}日`
+}
+
+// 获取评论
+const commentList = ref([])
+const getCommentList = async (id) => {
+  const res = await getListComment(id)
+  commentList.value = res.data.comments
+  console.log(commentList.value)
+}
+
+// 监听 URL 中 id 的变化
+watch(() => route.query.id, (newId) => {
+  const id = newId || '2609726208'
+  getTopMusicList(id)
+  getCommentList(id)
+  getList(id)
+}, {
+  immediate: true
+})
+
+// 添加滚动到评论区域的方法
+const scrollToComment = () => {
+  const commentSection = document.getElementById('comment-section')
+  if (commentSection) {
+    commentSection.scrollIntoView({ behavior: 'smooth' })
+  }
+}
+
+// 点击标签
+const handleChange = (tag) => {
+  router.push({
+    path: '/discover/playlist',
+    query: {
+      cat: tag,
+      page: 1,
+      hot: 'true'
+    }
+  })
+}
+
+// 获取相关推荐
+const relatedList = ref([])
+const getRelatedLists = async() =>{
+  const res = await getRelatedList(route.query.id)
+  relatedList.value = res.data.playlists
+  console.log(relatedList.value)
+}
+
+getRelatedLists()
+</script>
+
+<style lang="less" scoped>
+.common-layout {
+  width: 980px;
+  margin: 0 auto;
+  height: 100vh;
+  position: relative; /* 添加相对定位 */
+}
+
+.outer-container {
+  min-height: 100%; /* 修改为100% */
+  display: flex; /* 添加flex布局 */
+}
+
+.inner-container {
+  flex: 1; /* 填充剩余空间 */
+  display: flex; /* 添加flex布局 */
+}
+
+.aside {
+  border: 1px solid #E3E3E3;
+  height: auto; /* 高度自适应 */
+}
+
+.main {
+  min-height: calc(100vh - 60px); /* 确保内容高度足够 */
+}
+.list-top, .comment-top{
+  height: 33px;
+  border-bottom: 2px solid #c20c0c;
+  padding-bottom: 2px;
+}
+.comment-top{
+    margin-top: 20px;
+}
+.list-top .list-title{
+  float: left;
+  margin-top: 9px;
+}
+.list-top .list-count{
+  float: left;
+  margin: 15px 0 0 20px;
+}
+.list-top .play-count{
+  float: right;
+  margin: 15px 0 0 20px;
+}
+h3 {
+  font-size: 20px;
+  line-height: 28px;
+}
+.top-list-top{
+  padding: 40px;
+  .m-into{
+    // 修改此处，移除负外边距，使用 flex 布局
+    display: flex;
+    align-items: flex-start;
+    margin: 0;
+    .cover {
+      margin-right: 20px; // 添加图片与内容的间距
+    }
+    .cnt{
+      // 移除浮动和宽度设置
+      float: none;
+      width: auto;
+      margin-top: 5px;
+      .cntc{
+        margin-left: 0; // 移除左侧外边距
+        display: flex; // 添加 flex 布局
+        flex-direction: column; // 设置垂直排列
+      }
+      h2{
+        line-height: 24px;
+        font-size: 20px;
+        font-weight: normal;
+      }
+      .user{
+        margin: 10px 0 20px;
+        line-height: 35px;
+        display: flex;
+        align-items: center;
+        gap: 10px;  /* 增加头像与名字的距离 */
+        img{
+            width: 35px;
+            height: 35px;
+            border-radius: 50%;  /* 头像圆形化 */
+        }
+      }
+      .creator{
+        display: flex;
+        flex-direction: row;
+        align-items: center;
+        gap: 10px;
+      }
+      .btns {
+        margin-bottom: 25px;
+        margin-right: -10px;
+        .play{
+          background-color: #2374C2;
+          color: #fff;
+        }
+      }
+    }
+  }
+}
+.list{
+  width: 100%;
+  border: 1px solid #d9d9d9;
+  th{
+    height: 38px;
+    background-color: #f7f7f7;
+    background-position: 0 0;
+    background-repeat: repeat-x;
+  }
+  td{
+    padding: 6px 10px;
+    line-height: 18px;
+    text-align: left;
+  }
+  .number{
+    width: 77px;
+  }
+  .music-title{
+    height: 18px;
+    line-height: 18px;
+    padding: 8px 10px;
+    background-position: 0 -56px;
+  }
+  .duration{
+    width: 91px;
+  }
+  .singer{
+    width: 18%;
+  }
+  .album{
+    width: 20%;
+    a{
+      color: #000;
+    }
+  }
+  .td-number{
+    float: left;
+    width: 25px;
+    margin-left: 0;
+    text-align: center;
+    color: #999;
+  }
+  .td-music-title{
+    .music-name{
+      float: left;
+      width: 100%;
+      a{
+        color: #000;
+        font-weight: normal;
+        cursor: pointer;
+      }
+      img{
+        padding-right: 5px;
+        cursor: pointer;
+      }
+      .tag{
+        color: #aeaeae;
+      }
+    }
+  }
+  .dur{
+    line-height: 18px;
+    text-align: left;
+  }
+  .s-name{
+    width: 100%;
+    position: relative;
+    zoom: 1;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+  }
+  .list tbody tr{ 
+    height: 30px; 
+  } 
+  tbody tr.odd {
+    background-color: #f7f7f7;
+  }
+  tbody tr.even {
+    background-color: #ffffff;
+  }
+}
+
+
+.music-name {
+  display: flex;
+  align-items: center;
+  gap: 8px; // 设置播放按钮和歌名之间的间距
+}
+
+.music-name img {
+  vertical-align: middle; // 确保图片垂直居中
+}
+.m-cmmt .head, .m-cmmt .head img
+ {
+    float: left;
+    width: 50px;
+    height: 50px;
+    margin-right: -100px;
+    }
+.m-cmmt .itm .cmn{
+    width: 100%;
+    overflow: hidden;
+    line-height: 20px;
+}
+.m-cmmt .itm a{
+    margin-right: 5px;
+    color: #000;
+}
+.m-cmmt .itm{
+  padding: 15px 0;
+  border-top: 1px dotted #ccc;
+  position: relative; // 添加相对定位
+  display: flex; // 使用 flex 布局
+  align-items: flex-start; // 头像顶部对齐
+}
+
+.m-cmmt .head {
+  float: none; // 移除浮动
+  margin-right: 15px; // 添加头像与内容的间距
+}
+
+.m-cmmt .head img {
+  float: none; // 移除浮动
+  width: 50px;
+  height: 50px;
+  display: block; // 块级元素便于居中
+  margin: 0 auto; // 头像居中
+}
+
+.m-cmmt .itm .cmn {
+  width: calc(100% - 65px); // 减去头像和间距的宽度
+  overflow: visible; // 移除溢出隐藏
+  line-height: 20px;
+  // 移除 flex-direction: column，让名称和评论内容在同一行显示
+}
+.m-cmmt .itm a {
+  margin-right: 5px;
+  color: #000;
+  font-weight: bold; // 昵称加粗显示
+}
+
+.m-cmmt .itm .time {
+  float: none; // 移除浮动
+  position: absolute; // 绝对定位
+  left: 65px; // 与头像对齐
+  bottom: 2px; // 底部对齐
+  color: #999; // 时间文字灰色显示
+}
+
+.m-cmmt .itm .dz {
+  margin-right: 0; // 移除右边距
+  position: absolute; // 绝对定位
+  // 修改 right 值，数值调大往左移，可按需调整
+  right: 20px;
+  bottom: 15px; // 底部对齐
+  color: #999; // 点赞数文字灰色显示
+  vertical-align: initial; // 移除垂直对齐
+  display: flex; // 使用 flex 布局
+  align-items: center; // 垂直居中
+}
+
+.m-cmmt .itm .dz .like-icon {
+  width: 16px; // 设置图片宽度
+  height: 16px; // 设置图片高度
+  margin-right: 5px; // 添加图片与点赞数的间距
+}
+.btns {
+  .el-button {
+    border-radius: 4px;
+    padding: 8px 15px;
+    background-color: #f7f7f7;
+    border-color: #ECECEC;
+    color: #000;
+    font-size: 12px;
+    img{
+      padding-right: 5px;
+    }
+  }
+}
+.td-singer{
+  a{
+    color: #000;
+  }
+  cursor: pointer;
+}
+.back-to-top {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background-color: #f2f2f2;
+  box-shadow: 0 0 6px rgba(0, 0, 0, 0.12);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.3s;
+  
+  &:hover {
+    background-color: #e6e6e6;
+  }
+  
+  .backtop-content {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+}
+.main {
+  // 移除以下两行代码
+  // height: calc(100vh - 60px); /* 根据实际布局调整 */
+  // overflow-y: auto;
+  position: relative;
+}
+.empty-comment {
+  text-align: center;
+  color: #999;
+  padding: 20px;
+}
+.singer-area {
+  width: 250px;
+  padding: 15px;
+  box-sizing: border-box; /* 添加盒模型设置 */
+}
+
+.singer-all {
+  border: 1px solid #eee; 
+  border-radius: 8px; 
+  padding: 10px;
+}
+
+.singer-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 15px;
+  border-bottom: 1px solid #333;
+}
+
+.singer-header h3 {
+  font-size: 16px;
+  color: #333;
+  margin: 0;
+}
+.singer-list {
+  margin-top: 15px;
+}
+
+.loading-tip {
+  text-align: center;
+  padding: 20px;
+  color: #666;
+  font-size: 14px;
+}
+
+.singer-item {
+  display: flex;
+  align-items: center;
+  padding: 10px 0;
+  border-bottom: 1px solid #eee;
+}
+
+.singer-avatar img {
+  width: 50px;
+  height: 50px;
+  object-fit: cover;
+}
+
+.singer-info {
+  margin-left: 10px;
+  flex: 1;
+}
+
+.singer-name {
+  font-size: 14px;
+  margin: 0 0 5px 0;
+  a{
+    color: #333;
+  }
+  cursor: pointer;
+}
+
+.singer-desc {
+  font-size: 12px;
+  color: #666;
+  margin: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  cursor: pointer;
+}
+
+</style>
